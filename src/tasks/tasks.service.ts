@@ -9,7 +9,7 @@ export class TasksService {
   private readonly client: ClientProxy;
 
   constructor(
-    @Inject() client: ClientProxy,
+    @Inject("WEATHER_UPDATER_SERVICE") client: ClientProxy,
   ) {
     this.client = client;
   }
