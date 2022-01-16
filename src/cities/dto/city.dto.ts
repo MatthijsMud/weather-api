@@ -1,6 +1,6 @@
 import { } from "@nestjs/swagger";
 
-export class City {
+export class CityDto {
   readonly name: string;
 
   public constructor(name: string) {
