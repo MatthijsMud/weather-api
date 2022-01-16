@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TasksModule } from "./tasks/tasks.module";
 import { CitiesModule } from './cities/cities.module';
+import { WeatherModule } from "./weather/weather.module";
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { CitiesModule } from './cities/cities.module';
     }),
     TasksModule, 
     CitiesModule,
+    WeatherModule,
   ],
   controllers: [AppController],
   providers: [AppService],
