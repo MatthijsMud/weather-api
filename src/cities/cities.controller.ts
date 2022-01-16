@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Delete, Param, Body, } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Body, HttpException, } from '@nestjs/common';
 import { 
+  ApiAcceptedResponse,
   ApiBadRequestResponse,
   ApiConflictResponse, 
   ApiCreatedResponse, 
@@ -9,7 +10,7 @@ import {
 import { Observable, toArray } from "rxjs";
 import { map, catchError } from "rxjs/operators";
 import { CitiesService } from "./cities.service";
-import { City } from "./dto/city.dto";
+import { CityDto } from "./dto/city.dto";
 import { CreateCityDto } from './dto/create-city.dto';
 
 @Controller('cities')
@@ -23,21 +24,20 @@ export class CitiesController {
 
   @ApiOkResponse({ description: "" })
   @Get()
-  findAll(): Observable<City[]> {
-    return this.cities.findAll().pipe(
-      toArray()
-    );
+  findAll(): Promise<CityDto[]> {
+    return this.cities.findAll();
   }
 
   @ApiCreatedResponse({ description: "" })
   @ApiConflictResponse({ description: "City already exists" })
   @ApiServiceUnavailableResponse({ description: "Server has reached the max amount of requests per minute/month" })
   @Post()
-  create(@Body() city: CreateCityDto): Observable<string> {
-    return this.cities.create(city.name || "").pipe(map(value => JSON.stringify(value)));
+  create(@Body() city: CreateCityDto): Promise<CityDto> {
+    return this.cities.create(city.name);
   }
 
   @Delete(":id")
+  @ApiAcceptedResponse()
   @ApiBadRequestResponse()
   remove(@Param("id") id: string): string {
     return "";
@@ -46,16 +46,14 @@ export class CitiesController {
   @ApiOkResponse({ description: "" })
   @ApiBadRequestResponse()
   @Get("weather")
-  lastKnownWeatherForAll(): string {
-    return "";
+  lastKnownWeatherForAll(): Promise<CityDto[]> {
+    return this.cities.findAll();
   }
 
   @ApiOkResponse({ description: "" })
   @ApiBadRequestResponse()
   @Get(":name/weather")
-  lastWeeksWeather(@Param("name") name: string): Observable<City[]> {
-    return this.cities.findOne(name).pipe(
-      toArray()
-    );
+  lastWeeksWeather(@Param("name") name: string): Promise<any> {
+    return this.cities.weatherFor(name);
   }
 }
