@@ -1,6 +1,8 @@
 import { Injectable, Inject, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { ClientProxy } from "@nestjs/microservices";
+import { lastValueFrom } from "rxjs";
+import { tap } from "rxjs/operators";
 
 @Injectable()
 export class TasksService {
@@ -16,6 +18,13 @@ export class TasksService {
 
   @Cron(CronExpression.EVERY_HOUR)
   async updateWeather() {
-    this.logger.debug("Start updating weather data");
+    try {
+      this.logger.log("Start updating weather data");
+      await lastValueFrom(this.client.send({ cmd: "update" }, {}));
+      this.logger.error("Error occurred while updating weather data");
+    }
+    catch (exception) {
+      this.logger.error("Error occurred while updating weather data");
+    }
   }
 }
