@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Body, } from '@nestjs/common';
 import { 
   ApiBadRequestResponse,
   ApiConflictResponse, 
@@ -9,6 +9,7 @@ import {
 import { Observable } from "rxjs";
 import { map, catchError } from "rxjs/operators";
 import { CitiesService } from "./cities.service";
+import { CreateCityDto } from './dto/create-city.dto';
 
 @Controller('cities')
 export class CitiesController {
@@ -27,11 +28,10 @@ export class CitiesController {
 
   @ApiCreatedResponse({ description: "" })
   @ApiConflictResponse({ description: "City already exists" })
-  @ApiServiceUnavailableResponse({ description: "Server has reached " })
+  @ApiServiceUnavailableResponse({ description: "Server has reached the max amount of requests per minute/month" })
   @Post()
-  create(): string {
-    
-    return ""
+  create(@Body() city: CreateCityDto): Observable<string> {
+    return this.cities.create(city.name || "").pipe(map(value => JSON.stringify(value)));
   }
 
   @Delete(":id")
