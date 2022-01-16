@@ -6,9 +6,10 @@ import {
   ApiOkResponse, 
   ApiServiceUnavailableResponse 
 } from '@nestjs/swagger';
-import { Observable } from "rxjs";
+import { Observable, toArray } from "rxjs";
 import { map, catchError } from "rxjs/operators";
 import { CitiesService } from "./cities.service";
+import { City } from "./dto/city.dto";
 import { CreateCityDto } from './dto/create-city.dto';
 
 @Controller('cities')
@@ -22,8 +23,10 @@ export class CitiesController {
 
   @ApiOkResponse({ description: "" })
   @Get()
-  findAll(): string[] {
-    return []
+  findAll(): Observable<City[]> {
+    return this.cities.findAll().pipe(
+      toArray()
+    );
   }
 
   @ApiCreatedResponse({ description: "" })
@@ -50,9 +53,9 @@ export class CitiesController {
   @ApiOkResponse({ description: "" })
   @ApiBadRequestResponse()
   @Get(":name/weather")
-  lastWeeksWeather(@Param("name") name: string): Observable<string> {
+  lastWeeksWeather(@Param("name") name: string): Observable<City[]> {
     return this.cities.findOne(name).pipe(
-      map(city => JSON.stringify(city))
+      toArray()
     );
   }
 }
