@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import * as helmet from "helmet";
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -16,6 +17,9 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup("api", app, document);
+  
+  // Type defintions do not match what is actually exported.
+  app.use((helmet as any)());
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
   await app.startAllMicroservices();
