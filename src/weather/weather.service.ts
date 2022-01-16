@@ -24,15 +24,15 @@ export class WeatherService {
     this.weather = weather;
   }
 
-  public create() {
-    //this.weather.create({ weatherFor })
+  public async create(name: string) {
+    const key = ``;
+    const url = `https://api.openweathermap.org/data/2.5/weather?q=${name}&appid=${key}`;
+    const response = await lastValueFrom(this.http.get<{weather: { main: string }}>(url));
+
+    this.logger.log(response.data);
   }
 
   public findOne() {
-
-  }
-
-  public findAll() {
 
   }
 
