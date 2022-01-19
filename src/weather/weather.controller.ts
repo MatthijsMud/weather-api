@@ -19,9 +19,9 @@ export class WeatherController {
     
   }
 
-  @MessagePattern({ cmd: "create" })
-  create(data: string) {
-    return this.weather.create(data);
+  @MessagePattern({ cmd: "retrieve" })
+  retrieve(data: string) {
+    return this.weather.retrieve(data);
 
   }
 

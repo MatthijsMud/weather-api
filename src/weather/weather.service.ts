@@ -4,12 +4,13 @@ import { HttpService } from "@nestjs/axios";
 import { ConfigService } from "@nestjs/config";
 import { Repository, } from "typeorm";
 import { Observable, from, of, } from "rxjs";
-import { concatAll, map, tap, delay, bufferCount, concatMap, retryWhen, filter, catchError, ignoreElements, concatWith, mergeAll } from "rxjs/operators";
+import { concatAll, map, tap, delay, bufferCount, concatMap, retryWhen, filter, catchError, ignoreElements, concatWith, mergeAll, single, switchAll } from "rxjs/operators";
 
 import { validate } from "class-validator";
 import { plainToInstance } from "class-transformer";
-import { Weather } from "./weather.entity";
+import { City } from "../cities/city.entity";
 import { FromOpenWeatherMapDto } from "./dto/fromOpenWeatherMap.dto";
+import { WeatherDto } from "./dto/weather.dto";
 
 @Injectable()
 export class WeatherService {
@@ -17,13 +18,13 @@ export class WeatherService {
   private readonly logger = new Logger(WeatherService.name)
 
   private readonly http: HttpService;
-  private readonly weather: Repository<Weather>;
+  private readonly weather: Repository<City>;
   private readonly config: ConfigService;
 
   public constructor(
     http: HttpService,
-    @InjectRepository(Weather)
-    weather: Repository<Weather>,
+    @InjectRepository(City)
+    weather: Repository<City>,
     config: ConfigService
   ) {
     this.http = http;
@@ -49,8 +50,11 @@ export class WeatherService {
     );
   }
 
-  private getCurrentWeatherFor(name: string): Observable<FromOpenWeatherMapDto> {
+  private getCurrentWeatherFor(name: string): Observable<WeatherDto> {
     const key = this.config.get<string>("weatherApiKey");
+    // Consideration: Make configurable.
+    // Given the fact that other API's probably don't yield the same response, 
+    // this has a low priority.
     const url = "https://api.openweathermap.org/data/2.5/weather";
 
     return this.http.get(url, {
@@ -68,11 +72,11 @@ export class WeatherService {
         // has any such references.
         const message = error?.message;
         if (typeof message === "string") {
-          this.logger.error(`Error with ${message}`);
+          this.logger.error(`Error in API response.\n${message}`);
         } else {
           this.logger.error("Encountered an error with OpenWeatherMap's API response.");
         }
-        throw new InternalServerErrorException();
+        throw new InternalServerErrorException({});
       }),
       map(response => {
         const data = plainToInstance(FromOpenWeatherMapDto, response.data);
@@ -80,36 +84,58 @@ export class WeatherService {
           filter(errors => errors.length > 0),
           tap(errors => {
             this.logger.error(`OpenWeatherMaps API responded with object that does not match its schema\n${errors}`);
-            throw new InternalServerErrorException();
+            throw new InternalServerErrorException({});
           }),
           // The above should never actually emit a value; it either results
           // in an error, or completes empty. Though typing does not match which 
-          // we actually wish to return.
+          // we actually wish to return; discard the return types.
           ignoreElements(),
           // If we have reached this point, everything should have gone
           // correctly, so we can return the validated API response.
           concatWith(of(data))
         );
       }),
-      mergeAll(),
+      // TODO: Maybe use switch instead. 
+      switchAll(),
+      map(value => {
+        return plainToInstance(WeatherDto, {
+          wind: value.wind.speed,
+          temperature: value.main.temp,
+        })
+      }),
     );
   }
 
   private getCachedWeatherFor(name: string) {
-
+    return from(this.weather.findOne({ name}));
   }
 
-  public create(name: string) {
+  public retrieve(name: string) {
     return this.getCurrentWeatherFor(name);
   }
 
-  public findOne() {
-
+  public findOne(name: string) {
+    this.getCachedWeatherFor(name).pipe(
+    )
   }
 
   private updateOne(name: string): Observable<void> {
 
     return this.getCurrentWeatherFor(name).pipe(
+      single(),
+      map(weather => {
+        return from(this.weather.save({ 
+          weather: { 
+            temperature: weather.temperature,
+            wind: weather.wind,
+          }
+        })).pipe(
+          tap(value => this.logger.verbose(`Updated weather for [${name}].`))
+        );
+      }),
+      switchAll(),
+      // This observable solely performs side-effects; emitting
+      // any values is somewhat useless.
       ignoreElements()
     );
   }
@@ -136,7 +162,7 @@ export class WeatherService {
       bufferCount(maxBatchSize),
       concatMap(values => {
         return from(values).pipe(
-          map(value => this.updateOne(value.weatherFor.name)),
+          map(value => this.updateOne(value.name)),
           delay(batchInterval),
         );
       }),
