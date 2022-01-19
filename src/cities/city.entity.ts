@@ -2,9 +2,6 @@ import { Entity, Column, PrimaryColumn, OneToMany, ObjectID, ObjectIdColumn, One
 
 class Weather {
 
-  @ObjectIdColumn()
-  id!: ObjectID; // Instances should only be instantiated by the ORM.
-
   @Column()
   temperature!: number;
 
