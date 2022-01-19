@@ -3,12 +3,12 @@ import { IsObject, IsNumber, IsString, ValidateNested } from "class-validator";
 class Temperature {
   /** Given in Kelvin by default; treat it differently if requesting Celcius of Fahrenheit instead. */
   @IsNumber()
-  temp?: number;
+  temp!: number;
 }
 
 class Wind {
   @IsNumber()
-  speed?: number;
+  speed!: number;
 }
 
 /**
@@ -20,8 +20,8 @@ class Wind {
 export class FromOpenWeatherMapDto {
   
   @ValidateNested()
-  main?: Temperature;
+  main!: Temperature;
 
   @ValidateNested()
-  wind?: Wind;
+  wind!: Wind;
 }
