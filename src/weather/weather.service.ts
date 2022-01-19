@@ -1,9 +1,10 @@
-import { Injectable, Inject, Logger, HttpException, HttpStatus, InternalServerErrorException, } from "@nestjs/common";
+import { Injectable, Inject, Logger, HttpException, HttpStatus, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { HttpService } from "@nestjs/axios";
 import { ConfigService } from "@nestjs/config";
 import { Repository, } from "typeorm";
-import { Observable, from, of, } from "rxjs";
+import { AxiosError } from "axios";
+import { Observable, from, of, NotFoundError, } from "rxjs";
 import { concatAll, map, tap, delay, bufferCount, concatMap, retryWhen, filter, catchError, ignoreElements, concatWith, mergeAll, single, switchAll } from "rxjs/operators";
 
 import { validate } from "class-validator";
@@ -45,8 +46,30 @@ export class WeatherService {
    * @returns 
    */
   private httpRequestWorthRetrying<T>(errors: Observable<T>): Observable<T> {
+    const isAxiosError = (value: any): value is AxiosError => {
+      return Boolean(value?.isAxiosError);
+    }
     return errors.pipe(
-      filter(error => true)
+      tap(error => {
+        this.logger.error(`Error: ${error}`);
+        if (isAxiosError(error)) {
+          const status = error.response?.status;
+          if (!status) {
+            this.logger.error("HTTP response did not include status code.");
+          }
+          if (status && (500 <= status && status <= 600)) {
+            this.logger.log(`Issue on external server; worth retrying.\nStatus code: ${status}`);
+            return;
+          }
+          switch(status) {
+            case 404: throw new NotFoundException(error.response);
+            default: throw new HttpException(error.response?.data, status || 500);
+          }
+        }
+        throw error;
+      }),
+      // Don't immediately try again.
+      delay(2000),
     );
   }
 
@@ -63,19 +86,19 @@ export class WeatherService {
         q: name,
       }
     }).pipe(
-      retryWhen(this.httpRequestWorthRetrying),
-      // Encountered an error that is not worth retrying, this likely
-      // means the configuration is incorrect.
+      retryWhen(errors => this.httpRequestWorthRetrying(errors)),
+      // Encountered an error that is not worth retrying.
+      // This either means the city does not exist (404), or the
+      // server has not been configured correctly.
       catchError(error => {
-        // Logger does not work well with objects with circular references.
-        // We cannot simply log the error, as we don't know whether it
-        // has any such references.
-        const message = error?.message;
-        if (typeof message === "string") {
-          this.logger.error(`Error in API response.\n${message}`);
-        } else {
-          this.logger.error("Encountered an error with OpenWeatherMap's API response.");
+        // Could not be avoided, as this is the only way to know
+        // whether the server has data for the provided city.
+        if (error instanceof NotFoundException) {
+          this.logger.log("Requested city not available on the external server.");
+          throw error;
         }
+        this.logger.error(`Not worth retrying error.\n${error}`);
+        // Likely a configuration issue.
         throw new InternalServerErrorException({});
       }),
       map(response => {
@@ -95,7 +118,6 @@ export class WeatherService {
           concatWith(of(data))
         );
       }),
-      // TODO: Maybe use switch instead. 
       switchAll(),
       map(value => {
         return plainToInstance(WeatherDto, {
