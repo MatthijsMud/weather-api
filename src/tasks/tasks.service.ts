@@ -31,7 +31,7 @@ export class TasksService {
       await this.busyUpdating;
       this.busyUpdating = undefined;
       
-      this.logger.error("Finished updating weather data.");
+      this.logger.log("Finished updating weather data.");
     }
     catch (exception) {
       this.logger.error("Error occurred while updating weather data.");
