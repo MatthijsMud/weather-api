@@ -21,7 +21,7 @@ async function bootstrap() {
   // Type defintions do not match what is actually exported.
   app.use((helmet as any)());
 
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }));
   await app.startAllMicroservices();
   await app.listen(3000);
 }
