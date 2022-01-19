@@ -2,7 +2,7 @@ import { Injectable, Inject, Logger, HttpException, HttpStatus, } from "@nestjs/
 import { HttpService } from "@nestjs/axios";
 import { ClientProxy }  from "@nestjs/microservices";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, } from "typeorm";
+import { ObjectID, Repository, } from "typeorm";
 import { Observable, from, of, lastValueFrom, } from "rxjs";
 import { switchMap, concatAll, map, tap, switchAll, } from "rxjs/operators";
 
@@ -53,6 +53,24 @@ export class CitiesService {
     // running background services.
     return this.city.find();
   }
+
+  public async remove(id: string): Promise<{}> {
+    this.logger.log(`About to remove city with id [${id}].`);
+    try {
+
+      const result = await this.city.delete(id);
+      if (result.affected){
+        this.logger.log(`Entry with id [${id}] is no longer present in the database.`);
+      } else {
+        this.logger.log(`Id ${id} was not present in database.`);
+      }
+      return {};
+    }
+    catch (error) {
+      this.logger.error(`Failed to remove city from database\n${error}`);
+      throw error;
+    }
+  } 
 
   public async weatherFor(name: string): Promise<City> {
     const response = await this.city.findOne({ name });

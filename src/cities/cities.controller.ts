@@ -39,8 +39,8 @@ export class CitiesController {
   @Delete(":id")
   @ApiAcceptedResponse()
   @ApiBadRequestResponse()
-  remove(@Param("id") id: string): string {
-    return "";
+  remove(@Param("id") id: string): Promise<{}> {
+    return this.cities.remove(id);
   }
 
   @ApiOkResponse({ description: "" })
